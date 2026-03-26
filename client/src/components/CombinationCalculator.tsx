@@ -2,11 +2,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Sparkles } from "lucide-react";
 
 interface CombinationCalculatorProps {
-  totalCombinations: number;
+  n: number; // total images
+  r: number; // images per collage
 }
 
 // Calculate permutations P(n, r) = n! / (n - r)!
-export function calculateCombinations(n: number, r: number): number {
+export function calculatePermutations(n: number, r: number): number {
+  if (n <= 0 || r < 0) return 0;
   if (r > n) return 0;
   if (r === 0) return 1;
 
@@ -18,8 +20,11 @@ export function calculateCombinations(n: number, r: number): number {
 }
 
 export default function CombinationCalculator({
-  totalCombinations,
+  n,
+  r,
 }: CombinationCalculatorProps) {
+  const totalPermutations = calculatePermutations(n, r);
+
   return (
     <Card className="bg-primary/5 border-primary/20">
       <CardContent className="p-6">
@@ -33,7 +38,7 @@ export default function CombinationCalculator({
                 className="text-3xl font-bold text-primary"
                 data-testid="text-total-combinations"
               >
-                {totalCombinations}
+                {totalPermutations}
               </span>
               <span className="text-sm text-muted-foreground">
                 collages will be generated

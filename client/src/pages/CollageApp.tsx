@@ -4,7 +4,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import ImageUploader from "@/components/ImageUploader";
 import CollageSettings from "@/components/CollageSettings";
 import CombinationCalculator, {
-  calculateCombinations,
+  calculatePermutations,
 } from "@/components/CombinationCalculator";
 import LayoutSelector from "@/components/LayoutSelector";
 import TextOverlayControls from "@/components/TextOverlayControls";
@@ -104,7 +104,7 @@ export default function CollageApp() {
     setCurrentCombinationIndex(0);
   }, [combinations.length]);
 
-  const totalCombinations = calculateCombinations(
+  const totalCombinations = calculatePermutations(
     images.length,
     imagesPerCollage
   );
@@ -263,7 +263,7 @@ export default function CollageApp() {
             />
 
             {images.length >= 2 && (
-              <CombinationCalculator totalCombinations={totalCombinations} />
+              <CombinationCalculator n={images.length} r={imagesPerCollage} />
             )}
 
             {images.length >= imagesPerCollage && (
