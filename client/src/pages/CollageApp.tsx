@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import JSZip from "jszip";
 import { ImageIcon } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import ImageUploader from "@/components/ImageUploader";
@@ -12,8 +13,7 @@ import CollagePreview from "@/components/CollagePreview";
 import DownloadSection from "@/components/DownloadSection";
 import type { TextOverlay } from "@shared/schema";
 import { collageLayouts } from "@shared/schema";
-import JSZip from "jszip";
-import html2canvas from "html2canvas";
+import { renderCollageToBlob } from "@/lib/CanvasRenderer";
 
 interface UploadedImage {
   id: string;
@@ -34,6 +34,7 @@ export default function CollageApp() {
   const [textOverlay, setTextOverlay] = useState<TextOverlay | null>(null);
   const [currentCombinationIndex, setCurrentCombinationIndex] = useState(0);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generationProgress, setGenerationProgress] = useState(0);
   const [borderRadius, setBorderRadius] = useState(4);
   const [gap, setGap] = useState(8);
 
@@ -113,46 +114,42 @@ export default function CollageApp() {
 
   const handleDownloadAll = async () => {
     setIsGenerating(true);
+    setGenerationProgress(0);
+    const CONCURRENCY = 20; // High concurrency with efficient canvas rendering
+    const zip = new JSZip();
+    const total = combinations.length;
     
     try {
-      const zip = new JSZip();
-      const previewElement = document.querySelector('.collage-preview-container') as HTMLElement;
-      
-      if (!previewElement) {
-        throw new Error("Preview element not found");
-      }
-
-      // Store original state
-      const originalIndex = currentCombinationIndex;
-
-      for (let i = 0; i < combinations.length; i++) {
-        // Update current combination to render it
-        setCurrentCombinationIndex(i);
-        
-        // Wait for React to render
-        await new Promise(resolve => setTimeout(resolve, 800));
-        
-        const canvas = await html2canvas(previewElement, {
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: "#ffffff",
-          scale: 2, // Reduced from 4 to 2 for better balance of quality and file size
-          logging: false
-        });
-        
-        const blob = await new Promise<Blob | null>(resolve => 
-          canvas.toBlob(resolve, 'image/jpeg', 0.8) // Changed from PNG to JPEG with 80% quality
+      const renderCombination = async (combo: Combination) => {
+        const blob = await renderCollageToBlob(
+          combo.images.map(img => ({ url: img.url, label: img.label })),
+          selectedLayout,
+          {
+            width: 2000, // High quality resolution
+            height: 2000,
+            borderRadius,
+            gap,
+            textOverlay,
+            quality: 0.9, // Higher quality
+          }
         );
         
         if (blob) {
-          zip.file(`${combinations[i].name}.jpg`, blob);
+          zip.file(`${combo.name}.jpg`, blob);
         }
+      };
+
+      // Process in batches
+      for (let i = 0; i < total; i += CONCURRENCY) {
+        const batch = combinations.slice(i, i + CONCURRENCY);
+        await Promise.all(batch.map(combo => renderCombination(combo)));
+        setGenerationProgress(Math.min(100, Math.floor(((i + batch.length) / total) * 100)));
       }
 
-      // Restore original state
-      setCurrentCombinationIndex(originalIndex);
-
-      const zipBlob = await zip.generateAsync({ type: "blob" });
+      const zipBlob = await zip.generateAsync({ 
+        type: "blob",
+        compression: "STORE" // Faster ZIP generation
+      });
       const url = URL.createObjectURL(zipBlob);
       const link = document.createElement("a");
       link.href = url;
@@ -163,6 +160,7 @@ export default function CollageApp() {
       console.error("Error generating ZIP:", error);
     } finally {
       setIsGenerating(false);
+      setGenerationProgress(0);
     }
   };
 
@@ -204,7 +202,9 @@ export default function CollageApp() {
             {/* Center Panel - Preview */}
             <div className="space-y-6 flex flex-col">
               <div>
-                <h2 className="text-lg font-semibold mb-3">Live Preview</h2>
+                <h2 className="text-lg font-semibold mb-3">
+                  Live Preview {isGenerating && `(Generating: ${generationProgress}%)`}
+                </h2>
                 {currentCombination ? (
                   <div className="w-full flex justify-center">
                     <div className="w-full max-w-[800px]">
