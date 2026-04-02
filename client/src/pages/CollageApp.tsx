@@ -174,7 +174,7 @@ export default function CollageApp() {
               <ImageIcon className="w-6 h-6 text-primary" />
             </div>
             <div>
-              <h1 className="text-xl font-bold">Collage Maker</h1>
+              <h1 className="text-xl font-bold">Collage Maker Welcom Yogesh Padiya</h1>
               <p className="text-xs text-muted-foreground">
                 Smart combination generator
               </p>
